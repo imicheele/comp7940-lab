@@ -8,7 +8,7 @@ on:
 jobs:
   deploy:
     name: Deploy to EC2
-    runs-on: ubuntu-latest   # must be ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,9 +22,28 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd ~/chatbot_comp7940
+          
+          # Pull latest code from GitHub
           git pull origin main
-          # Restart chatbot inside venv
+          
+          # Create virtual environment if it doesn't exist
+          if [ ! -d "venv" ]; then
+            python3.12 -m venv venv
+          fi
+          
+          # Activate venv and install dependencies
+          source venv/bin/activate
+          pip install -r requirements.txt
+          
+          # Stop old chatbot process
           pkill -f "python chatbot.py" || true
-          nohup ~/chatbot_comp7940/venv/bin/python chatbot.py > app.log 2>&1 &
+          sleep 2
+          
+          # Start new chatbot in background
+          nohup python chatbot.py > app.log 2>&1 &
+          
+          # Verify it's running
+          sleep 2
+          ps -ef | grep "python chatbot.py" | grep -v grep
+          
           EOF
-
